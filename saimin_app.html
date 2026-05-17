@@ -32,6 +32,7 @@ body {
   color: #f5d9ec;
   user-select: none;
   isolation: isolate;
+  contain: layout style;
 }
 @media (min-width: 500px) {
   .saimin-frame {
@@ -48,6 +49,12 @@ body {
   width: 120%;
   height: 120%;
   z-index: 0;
+}
+/* GPU layer hint — view-box maps 50%50% to the center (0,0) of viewBox "-500 -500 1000 1000" */
+#armsBack, #armsMid, #armsFront {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 .swirl-vignette {
   position: absolute; inset: 0;
@@ -84,19 +91,29 @@ body {
   height: auto;
   filter: drop-shadow(0 0 5px #ff9ee0) drop-shadow(0 0 14px #c050b0aa);
 }
+/* モバイル: drop-shadow を1層に削減 */
+@media (pointer: coarse) {
+  .eye-svg { filter: drop-shadow(0 0 5px #ff9ee0); }
+}
 .outer-rune-ring {
   animation: outer-rune-spin 40s linear infinite;
   transform-origin: 200px 200px;
+  will-change: transform;
 }
 .outer-rune-ring.active { animation-duration: 9s; }
 .inner-rune-ring {
   animation: inner-rune-spin 26s linear infinite;
   transform-origin: 200px 200px;
+  will-change: transform;
 }
 .inner-rune-ring.active { animation-duration: 5s; }
 @keyframes outer-rune-spin { to { transform: rotate(-360deg); } }
 @keyframes inner-rune-spin { to { transform: rotate(360deg); } }
-.iris-swirl { animation: iris-spin 18s linear infinite; transform-origin: 200px 200px; }
+.iris-swirl {
+  animation: iris-spin 18s linear infinite;
+  transform-origin: 200px 200px;
+  will-change: transform;
+}
 .iris-swirl.active { animation-duration: 3.5s; }
 @keyframes iris-spin { to { transform: rotate(-360deg); } }
 .toggle { display: flex; justify-content: center; gap: 6px; margin: 1% 0 2%; }
@@ -165,6 +182,13 @@ body {
   0%, 100% { opacity: 0.7; text-shadow: 0 0 6px #ff7adf88; }
   50% { opacity: 1; text-shadow: 0 0 16px #ff7adf, 0 0 32px #ff7adfaa; color: #fff; }
 }
+/* モバイル: trance-pulse を opacity のみに簡略化 */
+@media (pointer: coarse) {
+  @keyframes trance-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+}
 </style>
 </head>
 <body>
@@ -178,19 +202,19 @@ body {
         <stop offset="100%" stop-color="#050003"/>
       </radialGradient>
       <filter id="blurBack" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="38"/>
+        <feGaussianBlur id="fbBack" stdDeviation="38"/>
       </filter>
       <filter id="blurMid" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="18"/>
+        <feGaussianBlur id="fbMid" stdDeviation="18"/>
       </filter>
       <filter id="blurFront" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="8"/>
+        <feGaussianBlur id="fbFront" stdDeviation="8"/>
       </filter>
     </defs>
     <rect x="-500" y="-500" width="1000" height="1000" fill="url(#bgRad)"/>
-    <g id="armsBack" filter="url(#blurBack)" transform="rotate(0)"></g>
-    <g id="armsMid" filter="url(#blurMid)" transform="rotate(0)"></g>
-    <g id="armsFront" filter="url(#blurFront)" transform="rotate(0)"></g>
+    <g id="armsBack" filter="url(#blurBack)"></g>
+    <g id="armsMid" filter="url(#blurMid)"></g>
+    <g id="armsFront" filter="url(#blurFront)"></g>
   </svg>
   <div class="swirl-vignette"></div>
 
@@ -296,11 +320,23 @@ body {
   const $ = (id) => document.getElementById(id);
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
+  // タッチデバイス（スマホ・タブレット）判定
+  const isMobile = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+
+  // ============ モバイル: SVGブラーフィルターの負荷を大幅削減 ============
+  // feGaussianBlur は大きな stdDeviation ほどGPUコストが指数的に増加する
+  if (isMobile) {
+    $('armsBack').removeAttribute('filter'); // 最大コストの後景ブラーを完全除去
+    $('fbMid').setAttribute('stdDeviation', '5');  // 18 → 5
+    $('fbFront').setAttribute('stdDeviation', '2'); // 8 → 2
+  }
+
   // ============ Background vortex arms ============
   function buildArmPath(phase, growth, startR, maxR, baseThickness, twist) {
+    const step = isMobile ? 0.08 : 0.05; // モバイル: パス点を40%削減
     const outer = [];
     const inner = [];
-    for (let t = 0; t < 8; t += 0.05) {
+    for (let t = 0; t < 8; t += step) {
       const r = startR * Math.exp(growth * t);
       if (r > maxR) break;
       const angle = phase + t * twist;
@@ -340,21 +376,6 @@ body {
   for (let i = 0; i < 7; i++) {
     addArm(front, i * Math.PI * 2 / 7 + 0.4, 0.44, 20, 600, 10, 1.85, '#d03888', 0.65);
   }
-
-  // ============ JS-driven vortex rotation ============
-  let rotBack = 0, rotMid = 0, rotFront = 0;
-  let speedMul = 1;
-  function tickRot() {
-    const s = speedMul;
-    rotBack -= 0.05 * s;
-    rotMid += 0.10 * s;
-    rotFront += 0.18 * s;
-    $('armsBack').setAttribute('transform', 'rotate(' + rotBack.toFixed(2) + ')');
-    $('armsMid').setAttribute('transform', 'rotate(' + rotMid.toFixed(2) + ')');
-    $('armsFront').setAttribute('transform', 'rotate(' + rotFront.toFixed(2) + ')');
-    requestAnimationFrame(tickRot);
-  }
-  tickRot();
 
   // ============ Iris spiral ============
   function buildSpiral(id, turns, step, dir) {
@@ -473,32 +494,60 @@ body {
     setTimeout(() => $('cAudio').classList.remove('active'), 800);
   };
 
-  // ============ Waveform ============
+  // ============ Waveform (canvas) ============
   const cvs = $('wave');
-  const ctx = cvs.getContext('2d');
+  const wCtx = cvs.getContext('2d');
   const W = cvs.width, H = cvs.height;
-  let phase = 0;
-  function drawWave() {
-    ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = '#ff9ee0';
-    ctx.lineWidth = 1.4;
-    ctx.shadowColor = '#ff7adf';
-    ctx.shadowBlur = 5;
-    ctx.beginPath();
+  const waveStep = isMobile ? 2 : 1; // モバイル: 描画点を半減
+  let wavePhase = 0;
+
+  function drawWaveFrame() {
+    wCtx.clearRect(0, 0, W, H);
+    wCtx.strokeStyle = '#ff9ee0';
+    wCtx.lineWidth = 1.4;
+    // モバイルは shadowBlur を省略（Canvas シャドウは非常にコスト高）
+    wCtx.shadowBlur = isMobile ? 0 : 5;
+    if (!isMobile) wCtx.shadowColor = '#ff7adf';
+    wCtx.beginPath();
     const speed = state.on ? state.freq / 10 + 0.08 : 0.015;
     const amp = state.on ? H * 0.42 : H * 0.04;
-    for (let x = 0; x < W; x += 1) {
+    for (let x = 0; x < W; x += waveStep) {
       const y = H / 2
-        + Math.sin(x * 0.12 + phase) * amp * 0.55
-        + Math.sin(x * 0.045 + phase * 1.4) * amp * 0.3
-        + Math.sin(x * 0.22 + phase * 0.6) * amp * 0.18;
-      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        + Math.sin(x * 0.12 + wavePhase) * amp * 0.55
+        + Math.sin(x * 0.045 + wavePhase * 1.4) * amp * 0.3
+        + Math.sin(x * 0.22 + wavePhase * 0.6) * amp * 0.18;
+      if (x === 0) wCtx.moveTo(x, y); else wCtx.lineTo(x, y);
     }
-    ctx.stroke();
-    phase += speed;
-    requestAnimationFrame(drawWave);
+    wCtx.stroke();
+    wavePhase += speed;
   }
-  drawWave();
+
+  // ============ 統合RAFループ — tickRot と drawWave を1本に ============
+  // モバイルは30fps上限に絞り、RAF呼び出し回数を半減
+  let speedMul = 1;
+  let rotBack = 0, rotMid = 0, rotFront = 0;
+  const TARGET_FPS = isMobile ? 30 : 60;
+  const FRAME_MS = 1000 / TARGET_FPS;
+  let lastFrameTime = 0;
+
+  function tick(now) {
+    requestAnimationFrame(tick);
+    const delta = now - lastFrameTime;
+    if (delta < FRAME_MS - 1) return; // フレームレート制限
+    lastFrameTime = now - (delta % FRAME_MS);
+
+    // 渦アーム回転: CSS transform で GPU コンポジットレイヤーに委ねる
+    const s = speedMul;
+    rotBack  -= 0.05 * s;
+    rotMid   += 0.10 * s;
+    rotFront += 0.18 * s;
+    back.style.transform  = 'rotate(' + rotBack.toFixed(2)  + 'deg)';
+    mid.style.transform   = 'rotate(' + rotMid.toFixed(2)   + 'deg)';
+    front.style.transform = 'rotate(' + rotFront.toFixed(2) + 'deg)';
+
+    drawWaveFrame();
+  }
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
