@@ -266,11 +266,11 @@ body {
             <use href="#eyePath"/>
           </clipPath>
 
-          <!-- Inner rune path: text at r=76, band from r=59 (iris edge) to r=93 (40% toward eye tip) -->
-          <path id="innerRingPath" d="M 200,200 m -76,0 a 76,76 0 1,0 152,0 a 76,76 0 1,0 -152,0"/>
+          <!-- Inner rune path: baseline at r=83 (band r=59–93, cap height~14 → visual center at r=76) -->
+          <path id="innerRingPath" d="M 200,200 m -83,0 a 83,83 0 1,0 166,0 a 83,83 0 1,0 -166,0"/>
 
-          <!-- Outer rune path: text at r=93, band from r=76 to r=110 (same width as inner, shifted out by half) -->
-          <path id="outerRingPath" d="M 200,200 m -93,0 a 93,93 0 1,0 186,0 a 93,93 0 1,0 -186,0"/>
+          <!-- Outer rune path: baseline at r=100 (band r=76–110, cap height~13 → visual center at r=93) -->
+          <path id="outerRingPath" d="M 200,200 m -100,0 a 100,100 0 1,0 200,0 a 100,100 0 1,0 -200,0"/>
         </defs>
 
         <!-- ========== OUTSIDE-EYE LAYER ========== -->
@@ -291,9 +291,10 @@ body {
 
         <!-- OUTER RUNE RING: visible at spikes above/below eye. Band r=76–110, text at r=93 -->
         <g class="outer-rune-ring active" id="outerRing">
-          <circle cx="200" cy="200" r="93" fill="none" stroke="#fff" stroke-width="1" opacity="0.4"/>
+          <circle cx="200" cy="200" r="76"  fill="none" stroke="#fff" stroke-width="1.2" opacity="0.55"/>
+          <circle cx="200" cy="200" r="110" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.55"/>
           <text fill="#fff" font-size="18" font-family="serif" opacity="0.92">
-            <textPath href="#outerRingPath" startOffset="0" textLength="584.3" lengthAdjust="spacing">ᚦⵎᚱⵙᛗⵏᛞᚺⵄᚷᛒⵜᛚᛁⵙᛏⵄᚷⵎᚱᛗᚺᛒⵜⵄᛜᛞⵙᚦᛗᚱ</textPath>
+            <textPath href="#outerRingPath" startOffset="0" textLength="628.3" lengthAdjust="spacing">ᚦⵎᚱⵙᛗⵏᛞᚺⵄᚷᛒⵜᛚᛁⵙᛏⵄᚷⵎᚱᛗᚺᛒⵜⵄᛜᛞⵙᚦᛗᚱ</textPath>
           </text>
         </g>
 
@@ -316,8 +317,10 @@ body {
 
           <!-- INNER RUNE RING: inside eye clip, band r=59–93, text at r=76 -->
           <g class="inner-rune-ring active" id="innerRing">
+            <circle cx="200" cy="200" r="59" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.55"/>
+            <circle cx="200" cy="200" r="93" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.55"/>
             <text fill="#fff" font-size="20" font-family="serif" opacity="0.9">
-              <textPath href="#innerRingPath" startOffset="0" textLength="477.5" lengthAdjust="spacing">ᚦⵎᚱⵉᛗⵏᛞᚺⵄᚷᛒⵜᛚⵙᛏᚹᛜᛟᛢᚦⵎⵏᚱᛗ</textPath>
+              <textPath href="#innerRingPath" startOffset="0" textLength="521.5" lengthAdjust="spacing">ᚦⵎᚱⵉᛗⵏᛞᚺⵄᚷᛒⵜᛚⵙᛏᚹᛜᛟᛢᚦⵎⵏᚱᛗ</textPath>
             </text>
           </g>
 
