@@ -43,19 +43,30 @@ body {
     height: 90vh;
   }
 }
-.swirl-svg {
+
+/* 渦レイヤー: 3枚のSVGをそれぞれCSSアニメーションで回転
+   SVG要素ごと回転させることでブラウザがGPUコンポジットレイヤーを確保できる */
+.vortex-layer {
   position: absolute;
   inset: -10%;
   width: 120%;
   height: 120%;
   z-index: 0;
-}
-/* GPU layer hint — view-box maps 50%50% to the center (0,0) of viewBox "-500 -500 1000 1000" */
-#armsBack, #armsMid, #armsFront {
-  transform-box: view-box;
-  transform-origin: 50% 50%;
+  pointer-events: none;
   will-change: transform;
+  transform-origin: center;
 }
+@keyframes spin     { to { transform: rotate( 360deg); } }
+@keyframes spin-rev { to { transform: rotate(-360deg); } }
+/* アイドル速度 (OFF時) */
+#layer-back  { animation: spin-rev 600s linear infinite; }
+#layer-mid   { animation: spin     300s linear infinite; }
+#layer-front { animation: spin     167s linear infinite; }
+/* アクティブ速度 (ON時) */
+#layer-back.active  { animation-duration:  120s; }
+#layer-mid.active   { animation-duration:   60s; }
+#layer-front.active { animation-duration:   33s; }
+
 .swirl-vignette {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse at center, transparent 40%, #00000055 85%, #00000099 100%);
@@ -84,16 +95,27 @@ body {
   justify-content: center;
   min-height: 0;
   margin: 3% 0;
+  position: relative;
+}
+/* drop-shadow フィルターの代わりにCSSグラデーションで背景グロー
+   filter: drop-shadow はSVGを毎フレーム再ラスタライズするためモバイルで重い */
+.eye-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 72%;
+  max-width: 290px;
+  aspect-ratio: 1;
+  background: radial-gradient(ellipse at center, #ff7adf33 0%, #d850b81a 45%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 .eye-svg {
   width: 92%;
   max-width: 320px;
   height: auto;
-  filter: drop-shadow(0 0 5px #ff9ee0) drop-shadow(0 0 14px #c050b0aa);
-}
-/* モバイル: drop-shadow を1層に削減 */
-@media (pointer: coarse) {
-  .eye-svg { filter: drop-shadow(0 0 5px #ff9ee0); }
+  position: relative;
 }
 .outer-rune-ring {
   animation: outer-rune-spin 40s linear infinite;
@@ -182,19 +204,13 @@ body {
   0%, 100% { opacity: 0.7; text-shadow: 0 0 6px #ff7adf88; }
   50% { opacity: 1; text-shadow: 0 0 16px #ff7adf, 0 0 32px #ff7adfaa; color: #fff; }
 }
-/* モバイル: trance-pulse を opacity のみに簡略化 */
-@media (pointer: coarse) {
-  @keyframes trance-pulse {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
-  }
-}
 </style>
 </head>
 <body>
 <div class="saimin-frame" id="saimin">
 
-  <svg class="swirl-svg" viewBox="-500 -500 1000 1000" preserveAspectRatio="xMidYMid slice">
+  <!-- 後景: 背景グラデーション + 大きくぼかしたアーム。最も遅く逆回転 -->
+  <svg id="layer-back" class="vortex-layer active" viewBox="-500 -500 1000 1000" preserveAspectRatio="xMidYMid slice">
     <defs>
       <radialGradient id="bgRad" cx="50%" cy="50%" r="70%">
         <stop offset="0%" stop-color="#2a0420"/>
@@ -202,25 +218,39 @@ body {
         <stop offset="100%" stop-color="#050003"/>
       </radialGradient>
       <filter id="blurBack" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur id="fbBack" stdDeviation="38"/>
-      </filter>
-      <filter id="blurMid" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur id="fbMid" stdDeviation="18"/>
-      </filter>
-      <filter id="blurFront" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur id="fbFront" stdDeviation="8"/>
+        <feGaussianBlur stdDeviation="22"/>
       </filter>
     </defs>
     <rect x="-500" y="-500" width="1000" height="1000" fill="url(#bgRad)"/>
     <g id="armsBack" filter="url(#blurBack)"></g>
+  </svg>
+
+  <!-- 中景: 中程度のぼかし。中速で順回転 -->
+  <svg id="layer-mid" class="vortex-layer active" viewBox="-500 -500 1000 1000" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <filter id="blurMid" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="10"/>
+      </filter>
+    </defs>
     <g id="armsMid" filter="url(#blurMid)"></g>
+  </svg>
+
+  <!-- 前景: 軽くぼかした細いアーム。最速で順回転 -->
+  <svg id="layer-front" class="vortex-layer active" viewBox="-500 -500 1000 1000" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <filter id="blurFront" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="5"/>
+      </filter>
+    </defs>
     <g id="armsFront" filter="url(#blurFront)"></g>
   </svg>
+
   <div class="swirl-vignette"></div>
 
   <div class="content">
     <h1 class="title">SAIMIN</h1>
     <div class="eye-wrap">
+      <div class="eye-glow"></div>
       <svg class="eye-svg" viewBox="0 0 400 400">
         <defs>
           <radialGradient id="irisGrad" cx="50%" cy="50%" r="50%">
@@ -320,23 +350,13 @@ body {
   const $ = (id) => document.getElementById(id);
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  // タッチデバイス（スマホ・タブレット）判定
   const isMobile = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
-
-  // ============ モバイル: SVGブラーフィルターの負荷を大幅削減 ============
-  // feGaussianBlur は大きな stdDeviation ほどGPUコストが指数的に増加する
-  if (isMobile) {
-    $('armsBack').removeAttribute('filter'); // 最大コストの後景ブラーを完全除去
-    $('fbMid').setAttribute('stdDeviation', '5');  // 18 → 5
-    $('fbFront').setAttribute('stdDeviation', '2'); // 8 → 2
-  }
 
   // ============ Background vortex arms ============
   function buildArmPath(phase, growth, startR, maxR, baseThickness, twist) {
-    const step = isMobile ? 0.08 : 0.05; // モバイル: パス点を40%削減
     const outer = [];
     const inner = [];
-    for (let t = 0; t < 8; t += step) {
+    for (let t = 0; t < 8; t += 0.10) { // 0.05→0.10: パス頂点を半減
       const r = startR * Math.exp(growth * t);
       if (r > maxR) break;
       const angle = phase + t * twist;
@@ -373,8 +393,8 @@ body {
     addArm(mid, i * Math.PI * 2 / 5, 0.46, 25, 700, 32, 1.6, midColors[i], 0.95);
   }
   const front = $('armsFront');
-  for (let i = 0; i < 7; i++) {
-    addArm(front, i * Math.PI * 2 / 7 + 0.4, 0.44, 20, 600, 10, 1.85, '#d03888', 0.65);
+  for (let i = 0; i < 5; i++) { // 7→5本に削減
+    addArm(front, i * Math.PI * 2 / 5 + 0.4, 0.44, 20, 600, 10, 1.85, '#d03888', 0.65);
   }
 
   // ============ Iris spiral ============
@@ -408,9 +428,13 @@ body {
 
   function setActive(on) {
     state.on = on;
-    speedMul = on ? 1 : 0.2;
     $('btnOn').classList.toggle('active', on);
     $('btnOff').classList.toggle('active', !on);
+    // 渦レイヤーのCSSアニメーション速度切り替え
+    $('layer-back').classList.toggle('active', on);
+    $('layer-mid').classList.toggle('active', on);
+    $('layer-front').classList.toggle('active', on);
+    // 眼球要素
     $('outerRing').classList.toggle('active', on);
     $('innerRing').classList.toggle('active', on);
     $('iswirl').classList.toggle('active', on);
@@ -494,18 +518,24 @@ body {
     setTimeout(() => $('cAudio').classList.remove('active'), 800);
   };
 
-  // ============ Waveform (canvas) ============
+  // ============ Waveform canvas (JSで残る唯一のRAF処理) ============
   const cvs = $('wave');
   const wCtx = cvs.getContext('2d');
   const W = cvs.width, H = cvs.height;
-  const waveStep = isMobile ? 2 : 1; // モバイル: 描画点を半減
+  const waveStep = isMobile ? 2 : 1;
   let wavePhase = 0;
+  // モバイルは30fps上限 (波形は30fpsで十分)
+  const FRAME_MS = isMobile ? 1000 / 30 : 0;
+  let lastWaveTime = 0;
 
-  function drawWaveFrame() {
+  function drawWave(now) {
+    requestAnimationFrame(drawWave);
+    if (FRAME_MS > 0 && now - lastWaveTime < FRAME_MS - 1) return;
+    lastWaveTime = now;
+
     wCtx.clearRect(0, 0, W, H);
     wCtx.strokeStyle = '#ff9ee0';
     wCtx.lineWidth = 1.4;
-    // モバイルは shadowBlur を省略（Canvas シャドウは非常にコスト高）
     wCtx.shadowBlur = isMobile ? 0 : 5;
     if (!isMobile) wCtx.shadowColor = '#ff7adf';
     wCtx.beginPath();
@@ -521,33 +551,7 @@ body {
     wCtx.stroke();
     wavePhase += speed;
   }
-
-  // ============ 統合RAFループ — tickRot と drawWave を1本に ============
-  // モバイルは30fps上限に絞り、RAF呼び出し回数を半減
-  let speedMul = 1;
-  let rotBack = 0, rotMid = 0, rotFront = 0;
-  const TARGET_FPS = isMobile ? 30 : 60;
-  const FRAME_MS = 1000 / TARGET_FPS;
-  let lastFrameTime = 0;
-
-  function tick(now) {
-    requestAnimationFrame(tick);
-    const delta = now - lastFrameTime;
-    if (delta < FRAME_MS - 1) return; // フレームレート制限
-    lastFrameTime = now - (delta % FRAME_MS);
-
-    // 渦アーム回転: CSS transform で GPU コンポジットレイヤーに委ねる
-    const s = speedMul;
-    rotBack  -= 0.05 * s;
-    rotMid   += 0.10 * s;
-    rotFront += 0.18 * s;
-    back.style.transform  = 'rotate(' + rotBack.toFixed(2)  + 'deg)';
-    mid.style.transform   = 'rotate(' + rotMid.toFixed(2)   + 'deg)';
-    front.style.transform = 'rotate(' + rotFront.toFixed(2) + 'deg)';
-
-    drawWaveFrame();
-  }
-  requestAnimationFrame(tick);
+  requestAnimationFrame(drawWave);
 })();
 </script>
 </body>
